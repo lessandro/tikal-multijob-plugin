@@ -25,14 +25,12 @@ import com.tikal.jenkins.plugins.multijob.PhaseJobsConfig;
 import hudson.Extension;
 import hudson.Indenter;
 import hudson.Util;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
-import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.ListView;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.model.TopLevelItem;
 import hudson.model.ViewDescriptor;
 import hudson.model.ViewGroup;
@@ -149,15 +147,15 @@ public class MultiJobView extends ListView {
 		PhaseWrapper phaseWrapper = new PhaseWrapper(phaseNestLevel, currentPhaseName, isConditional);
 		out.add(phaseWrapper);
 		for (PhaseJobsConfig projectConfig : subProjects) {
-			Item tli = Jenkins.getInstance().getItem(projectConfig.getJobName(), project.getParent(),
-					AbstractProject.class);
+			Job tli = Jenkins.getInstance().getItem(projectConfig.getJobName(), project.getParent(),
+					Job.class);
 			if (tli instanceof MultiJobProject) {
 				MultiJobProject subProject = (MultiJobProject) tli;
 				BuildState jobBuildState = createBuildState(buildState, project, subProject);
 				phaseWrapper.addChildBuildState(jobBuildState);
 				addMultiProject(project, subProject, jobBuildState, phaseNestLevel + 1, currentPhaseName, out);
 			} else {
-				Job subProject = (Job) tli;
+				Job subProject = tli;
 				if (subProject == null)
 					continue;
 				BuildState jobBuildState = createBuildState(buildState, project, subProject);
@@ -202,7 +200,7 @@ public class MultiJobView extends ListView {
 		if (lastParentSuccessBuild != null) {
 			for (SubBuild subBuild : lastParentSuccessBuild.getSubBuilds()) {
 				if (subBuild.getJobName().equals(project.getName())) {
-					AbstractBuild build = (AbstractBuild) project.getBuildByNumber(subBuild.getBuildNumber());
+					Run build = project.getBuildByNumber(subBuild.getBuildNumber());
 					if (build != null && Result.SUCCESS.equals(build.getResult())) {
 						lastSuccessBuildNumber = subBuild.getBuildNumber();
 						break;
@@ -216,7 +214,7 @@ public class MultiJobView extends ListView {
 		if (lastParentFailureBuild != null) {
 			for (SubBuild subBuild : lastParentFailureBuild.getSubBuilds()) {
 				if (subBuild.getJobName().equals(project.getName())) {
-					AbstractBuild build = (AbstractBuild) project.getBuildByNumber(subBuild.getBuildNumber());
+					Run build = project.getBuildByNumber(subBuild.getBuildNumber());
 					if (build != null && Result.FAILURE.equals(build.getResult())) {
 						lastFailureBuildNumber = subBuild.getBuildNumber();
 						break;

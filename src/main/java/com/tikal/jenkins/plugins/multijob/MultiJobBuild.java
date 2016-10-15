@@ -15,7 +15,6 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
-import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Action;
 import hudson.model.Build;
@@ -189,10 +188,10 @@ public class MultiJobBuild extends Build<MultiJobProject, MultiJobBuild> {
 		private final String url;
 		private final boolean retry;
 		private final boolean aborted;
-		private final AbstractBuild<?, ?> build;
+		private final Run build;
 
 		public SubBuild(String parentJobName, int parentBuildNumber, String jobName, int buildNumber, String phaseName,
-				Result result, String icon, String duration, String url, AbstractBuild<?, ?> build) {
+				Result result, String icon, String duration, String url, Run build) {
 			this.parentJobName = parentJobName;
 			this.parentBuildNumber = parentBuildNumber;
 			this.jobName = jobName;
@@ -208,8 +207,7 @@ public class MultiJobBuild extends Build<MultiJobProject, MultiJobBuild> {
 		}
 
 		public SubBuild(String parentJobName, int parentBuildNumber, String jobName, int buildNumber, String phaseName,
-				Result result, String icon, String duration, String url, boolean retry, boolean aborted,
-				AbstractBuild<?, ?> build) {
+				Result result, String icon, String duration, String url, boolean retry, boolean aborted, Run build) {
 			this.parentJobName = parentJobName;
 			this.parentBuildNumber = parentBuildNumber;
 			this.jobName = jobName;
@@ -286,7 +284,7 @@ public class MultiJobBuild extends Build<MultiJobProject, MultiJobBuild> {
 		}
 
 		@Exported
-		public AbstractBuild<?, ?> getBuild() {
+		public Run<?, ?> getBuild() {
 			return build;
 		}
 	}

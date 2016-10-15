@@ -24,6 +24,7 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.FileParameterValue;
 import hudson.model.Hudson;
+import hudson.model.Job;
 import hudson.model.JobProperty;
 import hudson.model.JobPropertyDescriptor;
 import hudson.model.ParameterDefinition;
@@ -31,13 +32,12 @@ import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.model.StringParameterDefinition;
 import hudson.model.TaskListener;
 import hudson.plugins.parameterizedtrigger.AbstractBuildParameters;
-import hudson.plugins.parameterizedtrigger.AbstractBuildParameters.DontTriggerException;
 import hudson.plugins.parameterizedtrigger.FileBuildParameters;
 import hudson.plugins.parameterizedtrigger.PredefinedBuildParameters;
-import hudson.tasks.Builder;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
@@ -174,7 +174,7 @@ public class PhaseJobsConfig implements Describable<PhaseJobsConfig> {
 
 	@Override
 	public Descriptor<PhaseJobsConfig> getDescriptor() {
-		return Hudson.getInstance().getDescriptorOrDie(getClass());
+		return Jenkins.getInstance().getDescriptorOrDie(getClass());
 	}
 
 	public String getDisplayName() {
@@ -224,74 +224,18 @@ public class PhaseJobsConfig implements Describable<PhaseJobsConfig> {
 		}
 
 		public List<Descriptor<AbstractBuildParameters>> getBuilderConfigDescriptors() {
-			return Hudson.getInstance()
+			return Jenkins.getInstance()
 					.<AbstractBuildParameters, Descriptor<AbstractBuildParameters>> getDescriptorList(
 							AbstractBuildParameters.class);
 		}
 
 		public AutoCompletionCandidates doAutoCompleteJobName(@QueryParameter String value) {
 			AutoCompletionCandidates c = new AutoCompletionCandidates();
-			for (String localJobName : Hudson.getInstance().getJobNames()) {
+			for (String localJobName : Jenkins.getInstance().getJobNames()) {
 				if (localJobName.toLowerCase().startsWith(value.toLowerCase()))
 					c.add(localJobName);
 			}
 			return c;
-		}
-
-		private void savePhaseJobConfigParameters(String localJobName) {
-			AbstractProject project = ((AbstractProject) Jenkins.getInstance().getItemByFullName(localJobName));
-			List<ParameterDefinition> parameterDefinitions = getParameterDefinition(project);
-			StringBuilder sb = new StringBuilder();
-			// ArrayList<ModuleLocation> scmLocation = null;
-			for (ParameterDefinition pdef : parameterDefinitions) {
-				String paramValue = null;
-				if (pdef instanceof StringParameterDefinition) {
-					StringParameterDefinition stringParameterDefinition = (StringParameterDefinition) pdef;
-					paramValue = stringParameterDefinition.getDefaultParameterValue().value;
-				} else if (pdef instanceof BooleanParameterDefinition) {
-					BooleanParameterDefinition booleanParameterDefinition = (BooleanParameterDefinition) pdef;
-					paramValue = String.valueOf(booleanParameterDefinition.getDefaultParameterValue().value);
-				}
-				sb.append(pdef.getName()).append("=").append(paramValue).append("\n");
-			}
-
-			AbstractProject item = getCurrentJob();
-			if (item instanceof MultiJobProject) {
-				MultiJobProject parentProject = (MultiJobProject) item;
-				List<Builder> builders = parentProject.getBuilders();
-				if (builders != null) {
-					for (Builder builder : builders) {
-						if (builder instanceof MultiJobBuilder) {
-							MultiJobBuilder multiJobBuilder = (MultiJobBuilder) builder;
-							List<PhaseJobsConfig> phaseJobs = multiJobBuilder.getPhaseJobs();
-							for (PhaseJobsConfig phaseJob : phaseJobs) {
-								if (phaseJob.getJobName().equals(localJobName)) {
-									phaseJob.setJobProperties(sb.toString());
-									save();
-								}
-							}
-						}
-					}
-
-				}
-			}
-		}
-
-		private static String getCurrentJobName() {
-			String path = Descriptor.getCurrentDescriptorByNameUrl();
-			String[] parts = path.split("/");
-			StringBuilder builder = new StringBuilder();
-			for (int i = 2; i < parts.length; i += 2) {
-				if (i > 2)
-					builder.append('/');
-				builder.append(parts[i]);
-			}
-			return builder.toString();
-		}
-
-		private static AbstractProject getCurrentJob() {
-			String jobName = getCurrentJobName();
-			return (AbstractProject) Jenkins.getInstance().getItemByFullName(jobName);
 		}
 
 		public List<ParameterDefinition> getParameterDefinition(AbstractProject project) {
@@ -379,20 +323,28 @@ public class PhaseJobsConfig implements Describable<PhaseJobsConfig> {
 	 * @throws InterruptedException
 	 *             throws InterruptedException
 	 */
-	public List<Action> getActions(AbstractBuild build, TaskListener listener, AbstractProject project,
-			boolean isCurrentInclude) throws IOException, InterruptedException {
+	public List<Action> getActions(Run build, TaskListener listener, Job project, boolean isCurrentInclude)
+			throws IOException, InterruptedException {
 		List<Action> actions = new ArrayList<Action>();
 		MultiJobParametersAction params = null;
 		LinkedList<ParameterValue> paramsValuesList = new LinkedList<ParameterValue>();
 
-		List originalActions = project.getActions();
-
 		// Check to see if the triggered project has Parameters defined.
-		ParametersDefinitionProperty parameters = null;
-		for (Object object : originalActions) {
-			if (object instanceof hudson.model.ParametersDefinitionProperty)
-				parameters = (ParametersDefinitionProperty) object;
-		}
+                ParametersDefinitionProperty parameters = null;
+
+                if (project instanceof AbstractProject) {
+                    // Check to see if the triggered project has Parameters defined.
+                    for (Object object : project.getAllActions()) {
+                            if (object instanceof hudson.model.ParametersDefinitionProperty)
+                                    parameters = (ParametersDefinitionProperty) object;
+                    }
+                } else {
+                    for (Object object : project.getProperties().values()) {
+                        if (object instanceof hudson.model.ParametersDefinitionProperty)
+                                parameters = (ParametersDefinitionProperty) object;
+                    }
+                }
+		
 		// Get and add ParametersAction for default parameters values
 		// if triggered project is Parameterized.
 		// Values will get overridden later as required
@@ -416,30 +368,6 @@ public class PhaseJobsConfig implements Describable<PhaseJobsConfig> {
 					params = mergeParameters(params, mjpa);
 				} else {
 					params = mjpa;
-				}
-			}
-		}
-		// Backward compatibility
-		// get actions from configs merge ParametersActions if needed.
-		if (configs != null) {
-			for (AbstractBuildParameters config : configs) {
-				Action a;
-				try {
-					a = config.getAction(build, listener);
-					if (a instanceof ParametersAction) {
-						MultiJobParametersAction mjpa = new MultiJobParametersAction(
-								((ParametersAction) a).getParameters());
-						if (params == null) {
-							params = mjpa;
-						} else {
-							params = mergeParameters(params, mjpa);
-						}
-					} else if (a != null) {
-						actions.add(a);
-					}
-				} catch (DontTriggerException e) {
-					// don't trigger on this configuration
-					listener.getLogger().println("[multiJob] DontTriggerException: " + e);
 				}
 			}
 		}

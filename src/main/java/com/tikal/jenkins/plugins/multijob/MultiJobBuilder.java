@@ -57,12 +57,12 @@ import hudson.model.DependencyGraph;
 import hudson.model.DependencyGraph.Dependency;
 import hudson.model.Executor;
 import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.Queue.QueueAction;
 import hudson.model.queue.QueueTaskFuture;
-import hudson.scm.ChangeLogSet;
-import hudson.scm.ChangeLogSet.Entry;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import jenkins.model.DependencyDeclarer;
@@ -168,9 +168,9 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 	 * <code>{@link StatusJob#NOT_CHANGED_SINCE_LAST_BUILD}</code>.</li>
 	 * </ol>
 	 */
-	private StatusJob getScmChange(AbstractProject subjob, PhaseJobsConfig phaseConfig, AbstractBuild build,
-			BuildListener listener, Launcher launcher) throws IOException, InterruptedException {
-		if (subjob.isDisabled()) {
+	private StatusJob getScmChange(Job subjob, PhaseJobsConfig phaseConfig, AbstractBuild build, BuildListener listener,
+			Launcher launcher) throws IOException, InterruptedException {
+		if (!subjob.isBuildable()) {
 			return StatusJob.IS_DISABLED;
 		}
 		if (phaseConfig.isDisableJob()) {
@@ -184,18 +184,12 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		if (buildAlways) {
 			return StatusJob.BUILD_ALWAYS_IS_ENABLED;
 		}
-		final AbstractBuild lastBuild = subjob.getLastBuild();
+		final Run lastBuild = subjob.getLastBuild();
 		if (lastBuild == null) {
 			return StatusJob.DOESNT_CONTAINS_LASTBUILD;
 		}
 		if (lastBuild.getResult() != null && lastBuild.getResult().isWorseThan(Result.UNSTABLE)) {
 			return StatusJob.LASTBUILD_RESULT_IS_WORSE_THAN_UNSTABLE;
-		}
-		if (!lastBuild.getWorkspace().exists()) {
-			return StatusJob.WORKSPACE_IS_EMPTY;
-		}
-		if (subjob.poll(listener).hasChanges()) {
-			return StatusJob.CHANGED_SINCE_LAST_BUILD;
 		}
 
 		return StatusJob.NOT_CHANGED_SINCE_LAST_BUILD;
@@ -244,18 +238,16 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 
 			if (willResumeBuild) {
 				for (SubBuild subBuild : prevBuild.getSubBuilds()) {
-					Item item = Jenkins.getInstance().getItem(subBuild.getJobName(), prevBuild.getParent(),
-							AbstractProject.class);
-					if (item instanceof AbstractProject) {
-						AbstractProject childProject = (AbstractProject) item;
-						AbstractBuild childBuild = childProject.getBuildByNumber(subBuild.getBuildNumber());
-						if (null != childBuild) {
-							if (Result.SUCCESS.equals(childBuild.getResult())) {
-								successBuildMap.put(childProject.getUrl(), subBuild);
-							} else {
-								resume = true;
-								resumeBuildMap.put(childProject.getUrl(), subBuild);
-							}
+					Job childProject = Jenkins.getInstance().getItem(subBuild.getJobName(), prevBuild.getParent(),
+							Job.class);
+
+					Run childBuild = childProject.getBuildByNumber(subBuild.getBuildNumber());
+					if (null != childBuild) {
+						if (Result.SUCCESS.equals(childBuild.getResult())) {
+							successBuildMap.put(childProject.getUrl(), subBuild);
+						} else {
+							resume = true;
+							resumeBuildMap.put(childProject.getUrl(), subBuild);
 						}
 					}
 				}
@@ -270,11 +262,8 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		final CounterManager phaseCounters = new CounterManager();
 
 		for (PhaseJobsConfig phaseJobConfig : phaseJobs) {
-			Item item = jenkins.getItem(phaseJobConfig.getJobName(), multiJobBuild.getParent(), AbstractProject.class);
-			if (item instanceof AbstractProject) {
-				AbstractProject job = (AbstractProject) item;
-				phaseSubJobs.put(new PhaseSubJob(job), phaseJobConfig);
-			}
+			Job job = jenkins.getItem(phaseJobConfig.getJobName(), multiJobBuild.getParent(), Job.class);
+			phaseSubJobs.put(new PhaseSubJob(job), phaseJobConfig);
 		}
 
 		List<SubTask> subTasks = new ArrayList<SubTask>();
@@ -282,7 +271,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		for (PhaseSubJob phaseSubJob : phaseSubJobs.keySet()) {
 			index++;
 
-			AbstractProject subJob = phaseSubJob.job;
+			Job subJob = phaseSubJob.job;
 
 			// To be coherent with final results, we need to do this here.
 			PhaseJobsConfig phaseConfig = phaseSubJobs.get(phaseSubJob);
@@ -371,9 +360,9 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 			if (resume) {
 				SubBuild subBuild = resumeBuildMap.get(subJob.getUrl());
 				if (null != subBuild) {
-					AbstractProject prj = Jenkins.getInstance().getItem(subBuild.getJobName(),
-							multiJobBuild.getParent(), AbstractProject.class);
-					AbstractBuild childBuild = prj.getBuildByNumber(subBuild.getBuildNumber());
+					Job prj = Jenkins.getInstance().getItem(subBuild.getJobName(), multiJobBuild.getParent(),
+							Job.class);
+					Run childBuild = prj.getBuildByNumber(subBuild.getBuildNumber());
 					MultiJobResumeControl childControl = new MultiJobResumeControl(childBuild);
 					actions.add(childControl);
 				}
@@ -422,7 +411,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 					}
 				}
 			} else {
-				AbstractBuild jobBuild = subTask.subJob.getBuildByNumber(subBuild.getBuildNumber());
+				Run jobBuild = subTask.subJob.getBuildByNumber(subBuild.getBuildNumber());
 				updateSubBuild(multiJobBuild, thisProject, jobBuild, subBuild.getResult());
 			}
 		}
@@ -494,7 +483,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		@Override
 		public Object call() {
 			Result result = null;
-			AbstractBuild jobBuild = null;
+			Run jobBuild = null;
 			try {
 				int maxRetries = subTask.phaseConfig.getMaxRetries();
 				if (!subTask.phaseConfig.getEnableRetryStrategy()) {
@@ -509,7 +498,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 					if (subTask.isShouldTrigger()) {
 						subTask.generateFuture();
 					}
-					QueueTaskFuture<AbstractBuild> future = (QueueTaskFuture<AbstractBuild>) subTask.future;
+					QueueTaskFuture future = subTask.future;
 					while (true) {
 						if (subTask.isCancelled()) {
 							if (jobBuild != null) {
@@ -527,7 +516,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 						}
 
 						try {
-							jobBuild = future.getStartCondition().get(5, TimeUnit.SECONDS);
+							jobBuild = (Run) future.getStartCondition().get(5, TimeUnit.SECONDS);
 						} catch (Exception e) {
 							if (e instanceof TimeoutException)
 								continue;
@@ -569,8 +558,9 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 							finish = true;
 						}
 
-						ChangeLogSet<Entry> changeLogSet = jobBuild.getChangeSet();
-						subTask.multiJobBuild.addChangeLogSet(changeLogSet);
+						// ChangeLogSet<Entry> changeLogSet =
+						// jobBuild.getChangeSet();
+						// subTask.multiJobBuild.addChangeLogSet(changeLogSet);
 						addBuildEnvironmentVariables(subTask.multiJobBuild, jobBuild, listener);
 						subTask.result = result;
 					}
@@ -665,7 +655,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 			}
 		}
 
-		private boolean isKnownRandomFailure(AbstractBuild build) throws InterruptedException {
+		private boolean isKnownRandomFailure(Run build) throws InterruptedException {
 			boolean failure = false;
 			try {
 				final List<Pattern> patterns = getCompiledPattern();
@@ -738,19 +728,19 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		return false;
 	}
 
-	private void reportStart(BuildListener listener, AbstractProject subJob) {
+	private void reportStart(BuildListener listener, Job subJob) {
 		listener.getLogger().printf("Starting build job %s.\n",
 				HyperlinkNote.encodeTo('/' + subJob.getUrl(), subJob.getFullName()));
 	}
 
-	private void reportFinish(BuildListener listener, AbstractBuild jobBuild, Result result) {
+	private void reportFinish(BuildListener listener, Run jobBuild, Result result) {
 		listener.getLogger()
 				.println("Finished Build : "
 						+ HyperlinkNote.encodeTo("/" + jobBuild.getUrl() + "/",
 								String.valueOf(jobBuild.getDisplayName()))
 						+ " of Job : "
-						+ HyperlinkNote.encodeTo('/' + jobBuild.getProject().getUrl(),
-								jobBuild.getProject().getFullName())
+						+ HyperlinkNote.encodeTo('/' + jobBuild.getParent().getUrl(),
+								jobBuild.getParent().getFullName())
 						+ " with status : "
 						+ HyperlinkNote.encodeTo('/' + jobBuild.getUrl() + "/console", result.toString()));
 	}
@@ -762,41 +752,39 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		multiJobBuild.addSubBuild(subBuild);
 	}
 
-	private void updateSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject,
-			AbstractBuild<?, ?> jobBuild) {
+	private void updateSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject, Run jobBuild) {
 		SubBuild subBuild = new SubBuild(multiJobProject.getName(), multiJobBuild.getNumber(),
-				jobBuild.getProject().getName(), jobBuild.getNumber(), phaseName, null,
+				jobBuild.getParent().getName(), jobBuild.getNumber(), phaseName, null,
 				jobBuild.getIconColor().getImage(), jobBuild.getDurationString(), jobBuild.getUrl(), jobBuild);
 		multiJobBuild.addSubBuild(subBuild);
 	}
 
-	private void updateSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject,
-			AbstractBuild<?, ?> jobBuild, Result result) {
+	private void updateSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject, Run jobBuild,
+			Result result) {
 		SubBuild subBuild = new SubBuild(multiJobProject.getName(), multiJobBuild.getNumber(),
-				jobBuild.getProject().getName(), jobBuild.getNumber(), phaseName, result,
+				jobBuild.getParent().getName(), jobBuild.getNumber(), phaseName, result,
 				jobBuild.getIconColor().getImage(), jobBuild.getDurationString(), jobBuild.getUrl(), jobBuild);
 		multiJobBuild.addSubBuild(subBuild);
 	}
 
-	private void updateSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject,
-			AbstractBuild<?, ?> jobBuild, Result result, boolean retry) {
+	private void updateSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject, Run jobBuild,
+			Result result, boolean retry) {
 		SubBuild subBuild = new SubBuild(multiJobProject.getName(), multiJobBuild.getNumber(),
-				jobBuild.getProject().getName(), jobBuild.getNumber(), phaseName, result,
+				jobBuild.getParent().getName(), jobBuild.getNumber(), phaseName, result,
 				jobBuild.getIconColor().getImage(), jobBuild.getDurationString(), jobBuild.getUrl(), retry, false,
 				jobBuild);
 		multiJobBuild.addSubBuild(subBuild);
 	}
 
-	private void abortSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject,
-			AbstractBuild<?, ?> jobBuild) {
+	private void abortSubBuild(MultiJobBuild multiJobBuild, MultiJobProject multiJobProject, Run jobBuild) {
 		SubBuild subBuild = new SubBuild(multiJobProject.getName(), multiJobBuild.getNumber(),
-				jobBuild.getProject().getName(), jobBuild.getNumber(), phaseName, Result.ABORTED,
+				jobBuild.getParent().getName(), jobBuild.getNumber(), phaseName, Result.ABORTED,
 				BallColor.ABORTED.getImage(), "", jobBuild.getUrl(), false, true, jobBuild);
 		multiJobBuild.addSubBuild(subBuild);
 	}
 
 	@SuppressWarnings("rawtypes")
-	private synchronized void addBuildEnvironmentVariables(MultiJobBuild thisBuild, AbstractBuild jobBuild,
+	private synchronized void addBuildEnvironmentVariables(MultiJobBuild thisBuild, Run jobBuild,
 			BuildListener listener) {
 		// Env variables map
 		Map<String, String> variables = new HashMap<String, String>();
@@ -816,7 +804,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 					+ throwable.getMessage());
 		}
 
-		String jobName = jobBuild.getProject().getName();
+		String jobName = jobBuild.getParent().getName();
 		String jobNameSafe = jobName.replaceAll("[^A-Za-z0-9]", "_").toUpperCase();
 		String buildNumber = Integer.toString(jobBuild.getNumber());
 		String buildResult = jobBuild.getResult().toString();
@@ -900,8 +888,8 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private void prepareActions(AbstractBuild build, AbstractProject project, PhaseJobsConfig projectConfig,
-			BuildListener listener, List<Action> actions, int index) throws IOException, InterruptedException {
+	private void prepareActions(Run build, Job project, PhaseJobsConfig projectConfig, BuildListener listener,
+			List<Action> actions, int index) throws IOException, InterruptedException {
 		List<Action> parametersActions = null;
 		// if (projectConfig.hasProperties()) {
 		parametersActions = projectConfig.getActions(build, listener, project, projectConfig.isCurrParams());
@@ -915,7 +903,7 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 		public int buildNumber;
 		public int index;
 
-		public MultiJobAction(AbstractBuild build, int index) {
+		public MultiJobAction(Run build, int index) {
 			this.buildNumber = build.getNumber();
 			this.index = index;
 		}
@@ -978,9 +966,9 @@ public class MultiJobBuilder extends Builder implements DependencyDeclarer {
 	}
 
 	private final static class PhaseSubJob {
-		AbstractProject job;
+		Job job;
 
-		PhaseSubJob(AbstractProject job) {
+		PhaseSubJob(Job job) {
 			this.job = job;
 		}
 	}
