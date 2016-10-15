@@ -1,20 +1,5 @@
 package com.tikal.jenkins.plugins.multijob.views;
 
-import hudson.model.BallColor;
-import hudson.model.HealthReport;
-import hudson.model.Item;
-import hudson.model.ItemGroup;
-import hudson.model.Result;
-import hudson.model.TopLevelItemDescriptor;
-import hudson.model.AbstractProject;
-import hudson.model.Hudson;
-import hudson.model.Job;
-import hudson.model.Run;
-import hudson.search.SearchIndex;
-import hudson.search.Search;
-import hudson.security.ACL;
-import hudson.security.Permission;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -24,203 +9,240 @@ import org.acegisecurity.AccessDeniedException;
 
 import com.tikal.jenkins.plugins.multijob.MultiJobProject;
 
+import hudson.model.AbstractProject;
+import hudson.model.BallColor;
+import hudson.model.HealthReport;
+import hudson.model.Hudson;
+import hudson.model.Item;
+import hudson.model.ItemGroup;
+import hudson.model.Job;
+import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TopLevelItemDescriptor;
+import hudson.search.Search;
+import hudson.search.SearchIndex;
+import hudson.security.ACL;
+import hudson.security.Permission;
+
 @SuppressWarnings("rawtypes")
 public class ProjectWrapper extends AbstractWrapper {
 
-    final MultiJobProject multijob;
+	final MultiJobProject multijob;
 
-    final BuildState buildState;
+	final BuildState buildState;
 
-    final Job project;
+	final Job project;
 
-    final int nestLevel;
+	final int nestLevel;
 
-    public ProjectWrapper(MultiJobProject multijob, Job project,
-            BuildState buildState, int nestLevel) {
-        this.project = project;
-        this.multijob = multijob;
-        this.nestLevel = nestLevel;
-        this.buildState = buildState;
-    }
+	public ProjectWrapper(MultiJobProject multijob, Job project, BuildState buildState, int nestLevel) {
+		this.project = project;
+		this.multijob = multijob;
+		this.nestLevel = nestLevel;
+		this.buildState = buildState;
+	}
 
-    @SuppressWarnings("unchecked")
-    public Collection<? extends Job> getAllJobs() {
-        return project.getAllJobs();
-    }
+	@Override
+	@SuppressWarnings("unchecked")
+	public Collection<? extends Job> getAllJobs() {
+		return project.getAllJobs();
+	}
 
-    public String getName() {
-        return project.getName();
-    }
+	@Override
+	public String getName() {
+		return project.getName();
+	}
 
-    public String getFullName() {
-        return project.getFullName();
-    }
+	@Override
+	public String getFullName() {
+		return project.getFullName();
+	}
 
-    public String getDisplayName() {
-        return project.getDisplayName();
-    }
+	@Override
+	public String getDisplayName() {
+		return project.getDisplayName();
+	}
 
-    public String getFullDisplayName() {
-        return project.getFullDisplayName();
-    }
+	@Override
+	public String getFullDisplayName() {
+		return project.getFullDisplayName();
+	}
 
-    public String getUrl() {
-        return project.getUrl();
-    }
+	@Override
+	public String getUrl() {
+		return project.getUrl();
+	}
 
-    public String getShortUrl() {
-        return project.getShortUrl();
-    }
+	@Override
+	public String getShortUrl() {
+		return project.getShortUrl();
+	}
 
-    @Deprecated
-    public String getAbsoluteUrl() {
-        return project.getAbsoluteUrl();
-    }
+	@Override
+	@Deprecated
+	public String getAbsoluteUrl() {
+		return project.getAbsoluteUrl();
+	}
 
-    @SuppressWarnings("unchecked")
-    public void onLoad(ItemGroup<? extends Item> parent, String name)
-            throws IOException {
-        project.onLoad(parent, name);
-    }
+	@Override
+	@SuppressWarnings("unchecked")
+	public void onLoad(ItemGroup<? extends Item> parent, String name) throws IOException {
+		project.onLoad(parent, name);
+	}
 
-    public void onCopiedFrom(Item src) {
-        project.onCopiedFrom(src);
-    }
+	@Override
+	public void onCopiedFrom(Item src) {
+		project.onCopiedFrom(src);
+	}
 
-    public void onCreatedFromScratch() {
-        project.onCreatedFromScratch();
-    }
+	@Override
+	public void onCreatedFromScratch() {
+		project.onCreatedFromScratch();
+	}
 
-    public void save() throws IOException {
-        project.save();
-    }
+	@Override
+	public void save() throws IOException {
+		project.save();
+	}
 
-    public void delete() throws IOException, InterruptedException {
-        project.delete();
-    }
+	@Override
+	public void delete() throws IOException, InterruptedException {
+		project.delete();
+	}
 
-    public File getRootDir() {
-        return project.getRootDir();
-    }
+	@Override
+	public File getRootDir() {
+		return project.getRootDir();
+	}
 
-    public Search getSearch() {
-        return project.getSearch();
-    }
+	@Override
+	public Search getSearch() {
+		return project.getSearch();
+	}
 
-    public String getSearchName() {
-        return project.getSearchName();
-    }
+	@Override
+	public String getSearchName() {
+		return project.getSearchName();
+	}
 
-    public String getSearchUrl() {
-        return project.getSearchUrl();
-    }
+	@Override
+	public String getSearchUrl() {
+		return project.getSearchUrl();
+	}
 
-    public SearchIndex getSearchIndex() {
-        return project.getSearchIndex();
-    }
+	@Override
+	public SearchIndex getSearchIndex() {
+		return project.getSearchIndex();
+	}
 
-    public ACL getACL() {
-        return project.getACL();
-    }
+	@Override
+	public ACL getACL() {
+		return project.getACL();
+	}
 
-    public void checkPermission(Permission permission)
-            throws AccessDeniedException {
-        project.checkPermission(permission);
-    }
+	@Override
+	public void checkPermission(Permission permission) throws AccessDeniedException {
+		project.checkPermission(permission);
+	}
 
-    public boolean hasPermission(Permission permission) {
-        return project.hasPermission(permission);
-    }
+	@Override
+	public boolean hasPermission(Permission permission) {
+		return project.hasPermission(permission);
+	}
 
-    public Hudson getParent() {
-        return Hudson.getInstance();
-    }
+	@Override
+	public Hudson getParent() {
+		return Hudson.getInstance();
+	}
 
-    public int getNestLevel() {
-        return nestLevel;
-    }
+	public int getNestLevel() {
+		return nestLevel;
+	}
 
-    public TopLevelItemDescriptor getDescriptor() {
-        return (TopLevelItemDescriptor) project.getDescriptorByName(project
-                .getClass().getName());
-    }
+	@Override
+	public TopLevelItemDescriptor getDescriptor() {
+		return (TopLevelItemDescriptor) project.getDescriptorByName(project.getClass().getName());
+	}
 
-    Run findLastBuildForResult(Result result) {
-        if (buildState == null) {
-            return null;
-        }
-        if (Result.SUCCESS.equals(result)) {
-            return project.getBuildByNumber(buildState
-                    .getLastSuccessBuildNumber());
-        }
-        if (Result.FAILURE.equals(result)) {
-            return project.getBuildByNumber(buildState
-                    .getLastFailureBuildNumber());
-        }
-        return project.getBuildByNumber(buildState.getLastBuildNumber());
-    }
+	Run findLastBuildForResult(Result result) {
+		if (buildState == null) {
+			return null;
+		}
+		if (Result.SUCCESS.equals(result)) {
+			return project.getBuildByNumber(buildState.getLastSuccessBuildNumber());
+		}
+		if (Result.FAILURE.equals(result)) {
+			return project.getBuildByNumber(buildState.getLastFailureBuildNumber());
+		}
+		return project.getBuildByNumber(buildState.getLastBuildNumber());
+	}
 
-    public Run getLastFailedBuild() {
-        return findLastBuildForResult(Result.FAILURE);
-    }
+	public Run getLastFailedBuild() {
+		return findLastBuildForResult(Result.FAILURE);
+	}
 
-    public Run getLastSuccessfulBuild() {
-        return findLastBuildForResult(Result.SUCCESS);
-    }
+	public Run getLastSuccessfulBuild() {
+		return findLastBuildForResult(Result.SUCCESS);
+	}
 
-    public Run getLastBuild() {
-        return findLastBuildForResult(null);
-    }
+	public Run getLastBuild() {
+		return findLastBuildForResult(null);
+	}
 
-    public Job getProject() {
-        return project;
-    }
+	public Job getProject() {
+		return project;
+	}
 
-    public BallColor getIconColor() {
-        if (project instanceof AbstractProject &&  ((AbstractProject) project).isDisabled())
-            return BallColor.DISABLED;
-        Run lastBuild = getLastBuild();
-        while (lastBuild != null && lastBuild.hasntStartedYet())
-            lastBuild = lastBuild.getPreviousBuild();
+	public BallColor getIconColor() {
+		if (project instanceof AbstractProject && ((AbstractProject) project).isDisabled())
+			return BallColor.DISABLED;
+		Run lastBuild = getLastBuild();
+		while (lastBuild != null && lastBuild.hasntStartedYet())
+			lastBuild = lastBuild.getPreviousBuild();
 
-        if (lastBuild != null)
-            return lastBuild.getIconColor();
-        else
-            return BallColor.GREY;
-    }
+		if (lastBuild != null)
+			return lastBuild.getIconColor();
+		else
+			return BallColor.GREY;
+	}
 
-    public String getCss() {
-        StringBuilder builder = new StringBuilder();
-        if (project instanceof MultiJobProject) {
-            builder.append("font-weight:bold;");
-        }
-        builder.append("padding-left:");
-        builder.append(String.valueOf((getNestLevel() + 1) * 20));
-        builder.append("px");
-        return builder.toString();
-    }
+	public String getCss() {
+		StringBuilder builder = new StringBuilder();
+		if (project instanceof MultiJobProject) {
+			builder.append("font-weight:bold;");
+		}
+		builder.append("padding-left:");
+		builder.append(String.valueOf((getNestLevel() + 1) * 20));
+		builder.append("px");
+		return builder.toString();
+	}
 
-    public HealthReport getBuildHealth() {
-        return getProject().getBuildHealth();
-    }
+	@Override
+	public HealthReport getBuildHealth() {
+		return getProject().getBuildHealth();
+	}
 
-    @SuppressWarnings("unchecked")
-    public List<HealthReport> getBuildHealthReports() {
-        return getProject().getBuildHealthReports();
-    }
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<HealthReport> getBuildHealthReports() {
+		return getProject().getBuildHealthReports();
+	}
 
-    public boolean isBuildable() {
-        return multijob == null && getProject().isBuildable();
-    }
+	@Override
+	public boolean isBuildable() {
+		return multijob == null && getProject().isBuildable();
+	}
 
-    public String getRelativeNameFrom(ItemGroup g) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public String getRelativeNameFrom(ItemGroup g) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    public String getRelativeNameFrom(Item item) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public String getRelativeNameFrom(Item item) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
 }

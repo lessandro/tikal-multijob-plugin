@@ -5,25 +5,28 @@ import hudson.model.Run;
 
 public class MultiJobResumeControl implements Action {
 
-    private final Run<?, ?> run;
+	private final Run<?, ?> run;
 
-    public MultiJobResumeControl(Run<?, ?> run) {
-        this.run = run;
-    }
+	public MultiJobResumeControl(Run<?, ?> run) {
+		this.run = run;
+	}
 
-    public String getIconFileName() {
-        return null;
-    }
+	@Override
+	public String getIconFileName() {
+		return null;
+	}
 
-    public String getDisplayName() {
-        return null;
-    }
+	@Override
+	public String getDisplayName() {
+		return null;
+	}
 
-    public String getUrlName() {
-        return null;
-    }
+	@Override
+	public String getUrlName() {
+		return null;
+	}
 
-    public Run<?, ?> getRun() {
-        return run;
-    }
+	public Run<?, ?> getRun() {
+		return run;
+	}
 }

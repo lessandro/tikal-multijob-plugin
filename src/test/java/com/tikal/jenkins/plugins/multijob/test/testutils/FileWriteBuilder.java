@@ -41,51 +41,55 @@ import hudson.tasks.Builder;
  * Builder to write a file.
  */
 public class FileWriteBuilder extends Builder {
-    private final String filename;
-    private final String content;
-    private final String encoding;
+	private final String filename;
+	private final String content;
+	private final String encoding;
 
-    /**
-     * @param filename variables will be expanded
-     * @param content variables will be expanded
-     * @param encoding
-     */
-    public FileWriteBuilder(String filename, String content, String encoding) {
-        this.filename = filename;
-        this.content = content;
-        this.encoding = encoding;
-    }
+	/**
+	 * @param filename
+	 *            variables will be expanded
+	 * @param content
+	 *            variables will be expanded
+	 * @param encoding
+	 */
+	public FileWriteBuilder(String filename, String content, String encoding) {
+		this.filename = filename;
+		this.content = content;
+		this.encoding = encoding;
+	}
 
-    /**
-     * @param filename variables will be expanded
-     * @param content variables will be expanded
-     */
-    public FileWriteBuilder(String filename, String content) {
-        this(filename, content, Charset.defaultCharset().name());
-    }
+	/**
+	 * @param filename
+	 *            variables will be expanded
+	 * @param content
+	 *            variables will be expanded
+	 */
+	public FileWriteBuilder(String filename, String content) {
+		this(filename, content, Charset.defaultCharset().name());
+	}
 
-    @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
-                           BuildListener listener) throws InterruptedException, IOException {
-        EnvVars envVars = build.getEnvironment(listener);
-        String expandedFilename = envVars.expand(filename);
-        String expandedContent = envVars.expand(content);
+	@Override
+	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
+			throws InterruptedException, IOException {
+		EnvVars envVars = build.getEnvironment(listener);
+		String expandedFilename = envVars.expand(filename);
+		String expandedContent = envVars.expand(content);
 
-        FilePath file = build.getWorkspace().child(expandedFilename);
-        file.write(expandedContent, encoding);
-        return true;
-    }
+		FilePath file = build.getWorkspace().child(expandedFilename);
+		file.write(expandedContent, encoding);
+		return true;
+	}
 
-    @Extension
-    public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
-        @Override
-        public boolean isApplicable(@SuppressWarnings("rawtypes") Class<? extends AbstractProject> arg0) {
-            return true;
-        }
+	@Extension
+	public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
+		@Override
+		public boolean isApplicable(@SuppressWarnings("rawtypes") Class<? extends AbstractProject> arg0) {
+			return true;
+		}
 
-        @Override
-        public String getDisplayName() {
-            return "File Write Builder";
-        }
-    }
+		@Override
+		public String getDisplayName() {
+			return "File Write Builder";
+		}
+	}
 }
